@@ -247,42 +247,6 @@ app.post("/paylater-disable", async (req, res) => {
   }
 });
 
-app.post("/register", async (req, res) => {
-  const { email, password } = req.body;
-  try {
-    await db.collection("user").add({
-      email: email,
-      password: password,
-    });
-    res.status(201).json({ message: "Thêm user thành công" });
-  } catch (error) {
-    console.log("Error: " + error);
-    res.status(500).json({ error: "Có lỗi xảy ra trong quá trình xử lý." });
-  }
-});
-app.post("/login", async (req, res) => {
-  const { email, password } = req.body;
-
-  try {
-    const snapshot = await db
-      .collection("user")
-      .where("email", "==", email)
-      .where("password", "==", password)
-      .get();
-
-    if (snapshot.empty) {
-      return res.status(401).json({ error: "Email hoặc mật khẩu không đúng." });
-    }
-
-    const userDoc = snapshot.docs[0]; // Lấy user đầu tiên khớp với email & password
-    const userId = userDoc.id; // Lấy ID từ document
-
-    res.status(200).json({ message: "Đăng nhập thành công!", userId: userId });
-  } catch (error) {
-    console.error("Error:", error.message);
-    res.status(500).json({ error: "Có lỗi xảy ra trong quá trình xử lý." });
-  }
-});
 
 app.post("/save-phone", async (req, res) => {
   const { userId, phone } = req.body;
