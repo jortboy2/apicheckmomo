@@ -1,14 +1,7 @@
 const { default: axios } = require("axios");
 const express = require("express");
 const cors = require("cors");
-const admin = require("firebase-admin");
-const serviceAccount = require("../config/momo-887f3-firebase-adminsdk-684bp-4cee6b624a.json"); // Đường dẫn tới file JSON
 
-// Khởi tạo Firebase Admin SDK
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
-const db = admin.firestore();
 const app = express();
 app.use(cors());
 app.use(express.json());
