@@ -1,7 +1,14 @@
 const { default: axios } = require("axios");
 const express = require("express");
 const cors = require("cors");
+const admin = require("firebase-admin");
+const serviceAccount = require("../config/momo-887f3-firebase-adminsdk-684bp-4cee6b624a.json"); // Đường dẫn tới file JSON
 
+// Khởi tạo Firebase Admin SDK
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+const db = admin.firestore();
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -98,12 +105,18 @@ app.post("/get-history", async (req, res) => {
 
         try {
           const response_history = await axios.get(
-`${baseUrl}/api/transaction/v2/transactions/statistics?pageSize=20&pageNumber=0&fromDate=${encodeURIComponent(formattedFromDate)}&toDate=${encodeURIComponent(formattedToDate)}&dateId=THIS_MONTH&reportId=0&merchantId=${merchantData}&language=vi`,            { headers: { Authorization: `Bearer ${token}` } }
+            `${baseUrl}/api/transaction/v2/transactions/statistics?pageSize=20&pageNumber=0&fromDate=${encodeURIComponent(
+              formattedFromDate
+            )}&toDate=${encodeURIComponent(
+              formattedToDate
+            )}&dateId=THIS_MONTH&reportId=0&merchantId=${merchantData}&language=vi`,
+            { headers: { Authorization: `Bearer ${token}` } }
           );
 
           return {
             phone: merchant.phone,
             shop: merchant.data[0].brandName,
+            pendingMoney: response_history.data.data.totalPendingTrans,
             totalMoney: response_history.data.data.totalSuccessAmount,
             status: "Lấy lịch sử giao dịch thành công",
             merchantId: merchant.data[0].id,
@@ -114,6 +127,7 @@ app.post("/get-history", async (req, res) => {
             phone: merchant.phone,
             shop: merchant.data[0].brandName,
             totalMoney: null,
+            pendingMoney: null,
             status: "Lấy lịch sử giao dịch thất bại, hãy thử lại",
             merchantId: merchant.data[0].id,
             token: token,
@@ -149,20 +163,25 @@ app.post("/get-history", async (req, res) => {
           return {
             phone: paylater_history.phone,
             shop: paylater_history.shop,
+            pendingMoney: paylater_history.pendingMoney,
             totalMoney: paylater_history.totalMoney,
             status: paylater_history.status,
             merchantId: paylater_history.merchantId,
             paylater: response_paylater.data.data.enabled,
+            // limit: ((paylater_history.totalMoney / response_paylater.data.data.limit) * 100).toFixed(2)
           };
         } catch (error) {
           return {
             phone: paylater_history.phone,
             shop: paylater_history.shop,
+            pendingMoney: paylater_history.pendingMoney,
             totalMoney: paylater_history.totalMoney,
             status: paylater_history.status,
             merchantId: paylater_history.merchantId,
             paylater: null,
             error: error.message || "Lỗi không xác định",
+            // limit: null
+
           };
         }
       })
@@ -228,6 +247,62 @@ app.post("/paylater-disable", async (req, res) => {
   }
 });
 
+app.post("/register", async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    await db.collection("user").add({
+      email: email,
+      password: password,
+    });
+    res.status(201).json({ message: "Thêm user thành công" });
+  } catch (error) {
+    console.log("Error: " + error);
+    res.status(500).json({ error: "Có lỗi xảy ra trong quá trình xử lý." });
+  }
+});
+app.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const snapshot = await db
+      .collection("user")
+      .where("email", "==", email)
+      .where("password", "==", password)
+      .get();
+
+    if (snapshot.empty) {
+      return res.status(401).json({ error: "Email hoặc mật khẩu không đúng." });
+    }
+
+    const userDoc = snapshot.docs[0]; // Lấy user đầu tiên khớp với email & password
+    const userId = userDoc.id; // Lấy ID từ document
+
+    res.status(200).json({ message: "Đăng nhập thành công!", userId: userId });
+  } catch (error) {
+    console.error("Error:", error.message);
+    res.status(500).json({ error: "Có lỗi xảy ra trong quá trình xử lý." });
+  }
+});
+
+app.post("/save-phone", async (req, res) => {
+  const { userId, phone } = req.body;
+
+  if (!userId || !phone) {
+    return res.status(400).json({ error: "Vui lòng cung cấp userId và số điện thoại." });
+  }
+
+  try {
+    await db.collection(`data-phone-${userId}`).add({
+      userId: userId,
+      phone: phone
+    });
+
+    res.status(201).json({ message: "Lưu số điện thoại thành công!" });
+  } catch (error) {
+    console.error("Error:", error.message);
+    res.status(500).json({ error: "Có lỗi xảy ra trong quá trình xử lý." });
+  }
+});
 app.listen(PORT, () => {
   console.log(`Đang lắng nghe PORT http://localhost:${PORT}`);
 });
