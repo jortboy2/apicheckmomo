@@ -260,6 +260,51 @@ app.post("/save-phone", async (req, res) => {
     res.status(500).json({ error: "Có lỗi xảy ra trong quá trình xử lý." });
   }
 });
+app.post("/check-accountmomo", async (req, res) => {
+  const { phone } = req.body;
+
+  if (!Array.isArray(phone) || phone.length === 0) {
+    return res.status(400).json({
+      error: "Dữ liệu không hợp lệ.",
+    });
+  }
+
+  const responses = [];
+
+  for (const userId of phone) {
+    const cmdId = `${Date.now()}${Math.floor(100000000000 + Math.random() * 900000000000)}`;
+    const timestamp = Date.now();
+
+    const payload = {
+      userId: userId,
+      msgType: "AUTH_USER_MSG",
+      cmdId: cmdId,
+      time: timestamp,
+      appVer: 42020,
+      appCode: "4.2.2",
+      deviceOS: "ios",
+      buildNumber: 42020,
+      imei: "41221-9f9783040032ab267e49bd5ff7269b50dd4a19b6835ddc805103a3f1bf1a2058",
+      device: "iPhone 12 Pro Max",
+      firmware: "17.6.1",
+      hardware: "iPhone",
+      rkey: "87cdf85297a507bf7faa958ac9b04f3d",
+      isNFCAvailable: true
+    };
+
+    try {
+      const response = await axios.post("https://api.momo.vn/public/auth/user/check", payload);
+      responses.push(response.data);
+    } catch (error) {
+      responses.push({
+        userId: userId,
+        error: "Có lỗi xảy ra khi gọi API kiểm tra người dùng: " + (error.response?.data?.message || error.message),
+      });
+    }
+  }
+
+  res.json(responses);
+});
 app.listen(PORT, () => {
   console.log(`Đang lắng nghe PORT http://localhost:${PORT}`);
 });
