@@ -294,7 +294,11 @@ app.post("/check-accountmomo", async (req, res) => {
 
     try {
       const response = await axios.post("https://api.momo.vn/public/auth/user/check", payload);
-      responses.push(response.data);
+      if (response.data.errorCode === -3) {
+        responses.push({ userId: userId, valid: false });
+      } else {
+        responses.push({ userId: userId, valid: true });
+      }
     } catch (error) {
       responses.push({
         userId: userId,
